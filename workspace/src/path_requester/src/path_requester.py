@@ -148,8 +148,8 @@ if __name__ == '__main__':
 
     rateFrequency = 1 #in hertz
 
-    linearSpeed = 2.0
-    angularSpeed = 2.0
+    linearSpeed = 1.0
+    angularSpeed = 1.0
     distanceError = 0.1
     refreshTime = 0.01
 
@@ -168,27 +168,4 @@ if __name__ == '__main__':
         newPosition = getNewPositionFromCLI()
         #Move till the turtle gets the postion
         moveInClosedLoop(newPosition, distanceError, angularSpeed, linearSpeed, speedPublisher, refreshTime)
-
-        # #TODO ! Possible data contention
-        # currentPosition = Vector3(currentPose.x, currentPose.y, 0.0)
-        # currentAngle = currentPose.theta
-        # printVector(currentPosition, 'Current position')
-        # printScalar(currentAngle, 'Current angle')
-
-        # #Get the position difference
-        # positionDifference = getPositionDifference(currentPosition, newPosition)
-        # printVector(positionDifference, 'Position difference')
-        # #Get the end angle
-        # endAngle = calculateEndAngle(currentPosition, newPosition)
-        # printScalar(endAngle, 'End angle')
-        # #Get the rotation time
-        # rotationTime = calculateRotationTime(currentAngle, endAngle, angularSpeed)
-        # printScalar(rotationTime, 'Rotation time')
-        # #Calulo el tiempo de traslacion
-        # linearTime = calculateTraslationTime(currentPosition, newPosition, linearSpeed)
-        # printScalar(linearTime, 'Traslation time')
-
-        # #We send the rotation, linear traslation and stop command 
-        # move(speedPublisher, getCleanVector(),  Vector3(0.0, 0.0, angularSpeed), rotationTime)
-        # move(speedPublisher, Vector3(linearSpeed, 0.0, 0.0),  getCleanVector(), linearTime)
   
