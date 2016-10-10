@@ -9,6 +9,7 @@ sudo apt-get update
 
 #Full ROS Indigo installation
 sudo apt-get install ros-indigo-desktop-full
+sudo apt-get install ros-indigo-rosbridge-suite
 
 #To find available packages use the following
 # apt-cache search ros-indigo
