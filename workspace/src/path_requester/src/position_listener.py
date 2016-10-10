@@ -1,25 +1,23 @@
 #!/usr/bin/env python
+
+#This program suscribes to the turtle topic of its position
 import rospy
+import turtlesim.msg
 from std_msgs.msg import String
 
 
-def callback(data):
-    rospy.loginfo(rospy.get_caller_id() + "Postion Listener: %s", data.data)
+def callback(data, turtleName):
+    rospy.loginfo(rospy.get_caller_id() + " %s : [x: %s; y: %s; theta: %s]", 
+        turtleName, data.x, data.y, data.theta)
     
-def listener():
-    turtleTopic = '/turtle1/Pose'
+def listener(turtleName):
     listenerName = 'positionListener'
-    # In ROS, nodes are uniquely named. If two nodes with the same
-    # node are launched, the previous one is kicked off. The
-    # anonymous=True flag means that rospy will choose a unique
-    # name for our 'listener' node so that multiple listeners can
-    # run simultaneously.
     rospy.init_node(listenerName, anonymous=True)
+    turtleTopic = '/' + turtleName + '/pose'
 
-    rospy.Subscriber(turtleTopic, String, callback)
+    rospy.Subscriber(turtleTopic, turtlesim.msg.Pose, callback, turtleName)
 
-    # spin() simply keeps python from exiting until this node is stopped
     rospy.spin()
 
 if __name__ == '__main__':
-    listener()
+    listener('turtle1')
