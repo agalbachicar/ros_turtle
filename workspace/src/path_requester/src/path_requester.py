@@ -87,6 +87,9 @@ def getAngleIn2PIModulus(angle):
     else:
         return angle
 
+def getCleanVector():
+    return Vector3(0.0, 0.0, 0.0)
+
 def move(publisher, traslationVector, rotationVector, time, refreshTime = 0.5):
     while (time > refreshTime):
         publisher.publish(Twist(traslationVector, rotationVector))
@@ -95,9 +98,49 @@ def move(publisher, traslationVector, rotationVector, time, refreshTime = 0.5):
 
     publisher.publish(Twist(traslationVector, rotationVector))
     rospy.sleep(time)
-    publisher.publish(Twist(Vector3(0.0,0.0,0.0), Vector3(0.0,0.0,0.0)))
+    publisher.publish(Twist(getCleanVector(), getCleanVector()))
     return
-    
+
+def getDistance(currentPosition, newPosition):
+    diffPosition = getPositionDifference(currentPosition, newPosition)
+    return math.sqrt(diffPosition.x * diffPosition.x + diffPosition.y * diffPosition.y)
+
+def getMovementTimes(currentPosition, currentAngle, newPosition, angularSpeed, linearSpeed):
+    #Get the position difference
+    positionDifference = getPositionDifference(currentPosition, newPosition)
+    printVector(positionDifference, 'Position difference')
+    #Get the end angle
+    endAngle = calculateEndAngle(currentPosition, newPosition)
+    printScalar(endAngle, 'End angle')
+    #Get the rotation time
+    rotationTime = calculateRotationTime(currentAngle, endAngle, angularSpeed)
+    printScalar(rotationTime, 'Rotation time')
+    #Calulo el tiempo de traslacion
+    linearTime = calculateTraslationTime(currentPosition, newPosition, linearSpeed)
+    printScalar(linearTime, 'Traslation time')    
+    return Vector3(rotationTime, linearTime, 0.0);
+
+def moveInClosedLoop(newPosition, distanceError, angularSpeed, linearSpeed, publisher, refreshTime = 0.5):
+    #TODO ! Possible data contention
+    currentPosition = Vector3(currentPose.x, currentPose.y, 0.0)
+    currentAngle = currentPose.theta
+    #Get the current error
+    currentError = getDistance(currentPosition, newPosition)
+
+    while (currentError > distanceError):
+        #We get the times for traslation and for rotation
+        timeVector = getMovementTimes(currentPosition, currentAngle, newPosition, angularSpeed, linearSpeed)
+        #We make the movements
+        move(publisher, getCleanVector(), Vector3(0.0, 0.0, angularSpeed), timeVector.x, refreshTime)
+        move(publisher, Vector3(linearSpeed, 0.0, 0.0), getCleanVector(), timeVector.y, refreshTime)
+
+        #TODO ! Possible data contention
+        currentPosition = Vector3(currentPose.x, currentPose.y, 0.0)
+        currentAngle = currentPose.theta
+        #Get the current error
+        currentError = getDistance(currentPosition, newPosition)
+
+    return
 
 if __name__ == '__main__':
     nodeName = 'ros_turtle_controller'
@@ -107,6 +150,8 @@ if __name__ == '__main__':
 
     linearSpeed = 1.0
     angularSpeed = 1.0
+    distanceError = 0.1
+    refreshTime = 0.01
 
     #Initialize the node
     rospy.init_node(nodeName, anonymous=True)
@@ -119,28 +164,8 @@ if __name__ == '__main__':
 
     while not rospy.is_shutdown():
         #Get the new position
+        printCurrentXYAngle(turtleName)
         newPosition = getNewPositionFromCLI()
-
-        #TODO ! Possible data contention
-        currentPosition = Vector3(currentPose.x, currentPose.y, 0.0)
-        currentAngle = currentPose.theta
-        printVector(currentPosition, 'Current position')
-        printScalar(currentAngle, 'Current angle')
-
-        #Get the position difference
-        positionDifference = getPositionDifference(currentPosition, newPosition)
-        printVector(positionDifference, 'Position difference')
-        #Get the end angle
-        endAngle = calculateEndAngle(currentPosition, newPosition)
-        printScalar(endAngle, 'End angle')
-        #Get the rotation time
-        rotationTime = calculateRotationTime(currentAngle, endAngle, angularSpeed)
-        printScalar(rotationTime, 'Rotation time')
-        #Calulo el tiempo de traslacion
-        linearTime = calculateTraslationTime(currentPosition, newPosition, linearSpeed)
-        printScalar(linearTime, 'Traslation time')
-
-        #We send the rotation, linear traslation and stop command 
-        move(speedPublisher, Vector3(0.0, 0.0, 0.0),  Vector3(0.0, 0.0, angularSpeed), rotationTime)
-        move(speedPublisher, Vector3(linearSpeed, 0.0, 0.0),  Vector3(0.0, 0.0, 0.0), linearTime)
+        #Move till the turtle gets the postion
+        moveInClosedLoop(newPosition, distanceError, angularSpeed, linearSpeed, speedPublisher, refreshTime)
   
