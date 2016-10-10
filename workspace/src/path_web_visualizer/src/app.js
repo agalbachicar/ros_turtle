@@ -26,20 +26,20 @@ function onLoad(){
     if (isLoaded !== false){
       var distance = getDistance(lastPosition, newPosition);
       if(distance > distanceError){
-        positionLog(newPosition);
+        //positionLog(newPosition);
         //Convert postion to current canvas
         lastPositionTransformed = transformCoordinates(lastPosition); 
         newPositionTransformed = transformCoordinates(newPosition);
         //Draw the new line
         drawLine(lastPositionTransformed, newPositionTransformed);
         //Load the last position
-        updateLastPosition(lastPosition);        
+        updateLastPosition(newPosition);        
       }
     }
     else{
       isLoaded = true;
       //Load the last position
-      updateLastPosition(lastPosition);  
+      updateLastPosition(newPosition);  
     }
   };
 
@@ -66,7 +66,6 @@ function onLoad(){
   var distanceError = 0.1;
 
   var updateLastPosition = function(position){
-    var canvas = document.getElementById('turtleCanvas');
     lastPosition.x = position.x;
     lastPosition.y = position.y;
   }
@@ -76,7 +75,7 @@ function onLoad(){
      var ctx = canvas.getContext("2d");
      ctx.beginPath();
      ctx.moveTo(positionA.x, positionA.y);
-     ctx.lineTo(positionA.x, positionB.y);
+     ctx.lineTo(positionB.x, positionB.y);
      ctx.stroke();
   };  
 
@@ -87,8 +86,8 @@ function onLoad(){
     var width = 500.0;
     var height = 500.0
     return {
-      x : (10.0 - position.x) / 10.0 * width,
-      y : position.y / 10.0 * height
+      x : position.x / 10.0 * width,
+      y : (10.0 - position.y) / 10.0 * height
     };
   };  
 
@@ -97,8 +96,8 @@ function onLoad(){
   };
 
   var getDistance = function(positionA, positionB){
-    dx = positionB.x -positionA.x;
-    dy = positionB.y -positionA.y;
+    dx = positionB.x - positionA.x;
+    dy = positionB.y - positionA.y;
     return Math.sqrt(dx * dx + dy * dy);
   }
 };
