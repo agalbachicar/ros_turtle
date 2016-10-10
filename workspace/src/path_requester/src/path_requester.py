@@ -4,7 +4,7 @@
 import rospy
 import turtlesim.msg
 from geometry_msgs.msg import Twist, Vector3
-from std_msgs.msg import String
+import std_msgs.msg
 import math
 
 #Current position of the turtle
@@ -27,33 +27,39 @@ class Publishers:
     def __init__(self, turtleName):
         self.turtleName = turtleName
         self.speedPublisher = self._initSpeedPublisher()
-        self.positionPublisher = self._initPositionPublisher()
+        self.positionPublisher = self._initDistancePublisher()
 
     def _initSpeedPublisher(self):
         turtleTopic = '/' + self.turtleName + '/cmd_vel'
         publisher = rospy.Publisher(turtleTopic, Twist, queue_size=10)
         return publisher
 
-    def _initPositionPublisher(self):
-        turtlePositionTopic = '/' + 'path_requester/' + self.turtleName + '/pose'
-        publisher = rospy.Publisher(turtlePositionTopic, Vector3, queue_size=10)
+    def _initDistancePublisher(self):
+        turtlePositionTopic = '/' + 'path_requester/' + self.turtleName + '/distance'
+        publisher = rospy.Publisher(turtlePositionTopic, std_msgs.msg.Float32, queue_size=10)
         return publisher
 
     def publishSpeed(self, traslationSpeed, angularSpeed):
         self.speedPublisher.publish(Twist(Vector3(traslationSpeed, 0.0, 0.0),
                                         Vector3(0.0, 0.0, angularSpeed)))
 
-    def publishPose(self, x = 0.0, y = 0.0, theta = 0.0):
-        self.positionPublisher.publish(Vector3(x, y, theta))
+    def publishDistance(self, distance):
+        self.positionPublisher.publish(distance)
 #--------------------------------------------------------------------------------------------------------
 class Listeners:
     def __init__(self, turtleName):
         self.turtleName = turtleName
-        self.suscriber = self._initPoseListener()
+        self.poseSuscriber = self._initPoseListener()
+        self.distanceSuscriber = self._initDistanceListener()
 
     def _initPoseListener(self):
         turtleTopic = '/' + self.turtleName + '/pose'
         suscriptor = rospy.Subscriber(turtleTopic, turtlesim.msg.Pose, callbackTurtlePose, turtleName)
+        return suscriptor
+
+    def _initDistanceListener(self):
+        turtleTopic = '/' + 'path_requester/' + self.turtleName + '/distance'
+        suscriptor = rospy.Subscriber(turtleTopic, std_msgs.msg.Float32, callbackTurtleDistance, turtleName)
         return suscriptor
 
 def callbackTurtlePose(data, turtleName):
@@ -69,7 +75,11 @@ def callbackTurtlePose(data, turtleName):
         currentPose.linear_velocity = data.linear_velocity
         currentPose.angular_velocity = data.angular_velocity
         #Log new values
-        #logCurrentPose(turtleName)        
+        #logCurrentPose(turtleName)       
+
+def callbackTurtleDistance(data, turtleName):
+    printScalar(data.data, 'Distance')
+
 #--------------------------------------------------------------------------------------------------------
 class Metrics:
     def __init__(self, posA, angleA, posB):
@@ -122,43 +132,27 @@ class Controller:
     def _move(self, linearSpeed, angularSpeed, time, refreshTime = 0.5):
         while (time > refreshTime):
             self.publishers.publishSpeed(linearSpeed, angularSpeed)
-            #self.publishers.publish(Twist(traslationVector, rotationVector))
             rospy.sleep(refreshTime)
             time = time - refreshTime
 
         self.publishers.publishSpeed(linearSpeed, angularSpeed)
-        #publisher.publish(Twist(traslationVector, rotationVector))
         rospy.sleep(time)
         self.publishers.publishSpeed(0.0, 0.0)
-        #publisher.publish(Twist(getCleanVector(), getCleanVector()))
 
     def _getMovementTimes(self, metrics, angularSpeed, linearSpeed):
         positionDifference = metrics.getPositionDifference()
-        printVector(positionDifference, 'Position difference')
+        # printVector(positionDifference, 'Position difference')
 
         endAngle = metrics.getEndAngle()
-        printScalar(endAngle, 'End angle')
+        # printScalar(endAngle, 'End angle')
 
         rotationTime = metrics.getRotationTime(endAngle, angularSpeed)
-        printScalar(rotationTime, 'Rotation time')
+        # printScalar(rotationTime, 'Rotation time')
 
         linearTime = metrics.getTraslationTime(linearSpeed)
-        printScalar(linearTime, 'Traslation time')
+        # printScalar(linearTime, 'Traslation time')
 
         return Vector3(rotationTime, linearTime, 0.0)
-        # #Get the position difference
-        # positionDifference = getPositionDifference(currentPosition, newPosition)
-        # printVector(positionDifference, 'Position difference')
-        # #Get the end angle
-        # endAngle = calculateEndAngle(currentPosition, newPosition)
-        # printScalar(endAngle, 'End angle')
-        # #Get the rotation time
-        # rotationTime = calculateRotationTime(currentAngle, endAngle, angularSpeed)
-        # printScalar(rotationTime, 'Rotation time')
-        # #Calulo el tiempo de traslacion
-        # linearTime = calculateTraslationTime(currentPosition, newPosition, linearSpeed)
-        # printScalar(linearTime, 'Traslation time')    
-        # return Vector3(rotationTime, linearTime, 0.0);
 
     def moveInClosedLoop(self, newPosition, distanceError, angularSpeed, linearSpeed, refreshTime = 0.5):
         #TODO ! Possible data contention
@@ -168,6 +162,8 @@ class Controller:
         metrics = Metrics(currentPosition, currentAngle, newPosition)
         #Get the current error
         currentError = metrics.getDistance()
+        #Publish distance
+        publishers.publishDistance(currentError)
 
         while (currentError > distanceError):
             #We get the times for traslation and for rotation
@@ -183,38 +179,9 @@ class Controller:
             metrics = Metrics(currentPosition, currentAngle, newPosition)
             #Get the current error
             currentError = metrics.getDistance()
+            #Publish distance
+            publishers.publishDistance(currentError)
 
-# # TODO! Possible division by zero
-# def calculateTraslationTime(currentPosition, newPosition, speed):
-#     delta = getPositionDifference(currentPosition, newPosition)
-#     return math.sqrt( (math.pow(delta.x, 2.0) + math.pow(delta.y, 2.0)) / speed)
-
-# # TODO! Possible division by zero
-# def calculateRotationTime(currentAngle, newAngle, angularSpeed):
-#     delta = getAngleDifference(currentAngle, newAngle)
-#     return ( delta / angularSpeed )    
-
-# def moveInClosedLoop(newPosition, distanceError, angularSpeed, linearSpeed, publisher, refreshTime = 0.5):
-#     #TODO ! Possible data contention
-#     currentPosition = Vector3(currentPose.x, currentPose.y, 0.0)
-#     currentAngle = currentPose.theta
-#     #Get the current error
-#     currentError = getDistance(currentPosition, newPosition)
-
-#     while (currentError > distanceError):
-#         #We get the times for traslation and for rotation
-#         timeVector = getMovementTimes(currentPosition, currentAngle, newPosition, angularSpeed, linearSpeed)
-#         #We make the movements
-#         move(publisher, getCleanVector(), Vector3(0.0, 0.0, angularSpeed), timeVector.x, refreshTime)
-#         move(publisher, Vector3(linearSpeed, 0.0, 0.0), getCleanVector(), timeVector.y, refreshTime)
-
-#         #TODO ! Possible data contention
-#         currentPosition = Vector3(currentPose.x, currentPose.y, 0.0)
-#         currentAngle = currentPose.theta
-#         #Get the current error
-#         currentError = getDistance(currentPosition, newPosition)
-
-#     return
 #--------------------------------------------------------------------------------------------------------
 
 def logCurrentPose(turtleName):
@@ -237,39 +204,6 @@ def getNewPositionFromCLI():
     y = raw_input("--> Please insert the new Y coordinate: ")
     return Vector3(float(x), float(y), 0.0)
 
-
-# # TODO! Possible division by zero
-# def calculateEndAngle(currentPosition, newPosition):
-#     delta = getPositionDifference(currentPosition, newPosition)
-#     return math.atan2(delta.y, delta.x)
-
-# def getPositionDifference(currentPosition, newPosition):
-#     dx = newPosition.x - currentPosition.x
-#     dy = newPosition.y - currentPosition.y
-#     dz = newPosition.z - currentPosition.z
-#     return Vector3(dx, dy, dz)
-
-# def getAngleDifference(currentAngle, newAngle):
-#     cAngle = getAngleIn2PIModulus(currentAngle)
-#     nAngle = getAngleIn2PIModulus(newAngle)
-#     difAngle = getAngleIn2PIModulus(nAngle - cAngle)
-#     return difAngle
-
-# def getAngleIn2PIModulus(angle):
-#     if angle < 0.0:
-#         return math.pi + math.pi + angle
-#     else:
-#         return angle
-
-# def getDistance(currentPosition, newPosition):
-#     diffPosition = getPositionDifference(currentPosition, newPosition)
-#     return math.sqrt(diffPosition.x * diffPosition.x + diffPosition.y * diffPosition.y)
-
-def getCleanVector():
-    return Vector3(0.0, 0.0, 0.0)
-
-
-
 if __name__ == '__main__':
     nodeName = 'ros_turtle_controller'
     turtleName = 'turtle1'
@@ -285,10 +219,8 @@ if __name__ == '__main__':
     #Initialize the publishers
     publishers = Publishers(turtleName)
 
+    #Initialize the controller
     controller = Controller(publishers)
-
-    #Initialize the turtle speed publisher
-    #speedPublisher = initSpeedPublisher(turtleName)
     #Get the rate of the main thread
     rate = rospy.Rate(configs.refreshTime)
 
@@ -302,10 +234,4 @@ if __name__ == '__main__':
                         configs.angularSpeed,
                         configs.linearSpeed,
                         configs.refreshTime)
-        # moveInClosedLoop(newPosition, 
-        #                 configs.distanceError,
-        #                 configs.angularSpeed,
-        #                 configs.linearSpeed,
-        #                 publishers.speedPublisher,
-        #                 configs.refreshTime)
   
