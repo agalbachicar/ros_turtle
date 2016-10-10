@@ -143,14 +143,4 @@ if __name__ == '__main__':
         #We send the rotation, linear traslation and stop command 
         move(speedPublisher, Vector3(0.0, 0.0, 0.0),  Vector3(0.0, 0.0, angularSpeed), rotationTime)
         move(speedPublisher, Vector3(linearSpeed, 0.0, 0.0),  Vector3(0.0, 0.0, 0.0), linearTime)
-
-        # speedPublisher.publish(Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, angularSpeed)))
-        # rospy.sleep(rotationTime)
-        # speedPublisher.publish(Twist(Vector3(linearSpeed, 0.0, 0.0), Vector3(0.0, 0.0, 0.0)))
-        # rospy.sleep(linearTime)
-        # speedPublisher.publish(Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0)))
-
-        #rate.sleep()
-    
-    #rospy.spin()
   
