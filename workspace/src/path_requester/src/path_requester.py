@@ -89,9 +89,9 @@ class Metrics:
         return math.atan2(delta.y, delta.x)
 
     def getAngleDifference(self, newAngle):
-        cAngle = getAngleIn2PIModulus(self.angleA)
-        nAngle = getAngleIn2PIModulus(newAngle)
-        difAngle = getAngleIn2PIModulus(nAngle - cAngle)
+        cAngle = self.getAngleIn2PIModulus(self.angleA)
+        nAngle = self.getAngleIn2PIModulus(newAngle)
+        difAngle = self.getAngleIn2PIModulus(nAngle - cAngle)
         return difAngle
 
     def getAngleIn2PIModulus(self, angle):
@@ -106,11 +106,11 @@ class Metrics:
 
     # TODO! Possible division by zero
     def getRotationTime(self, newAngle, angularSpeed):
-        delta = self.getAngleDifference(self.angleA, newAngle)
+        delta = self.getAngleDifference(newAngle)
         return ( delta / angularSpeed ) 
 
-    def calculateTraslationTime(self, speed):
-        delta =self.getPositionDifference(self.posA, self.posB)
+    def getTraslationTime(self, speed):
+        delta = self.getPositionDifference()
         return math.sqrt( (math.pow(delta.x, 2.0) + math.pow(delta.y, 2.0)) / speed)
 
 #--------------------------------------------------------------------------------------------------------
@@ -133,8 +133,6 @@ class Controller:
         #publisher.publish(Twist(getCleanVector(), getCleanVector()))
 
     def _getMovementTimes(self, metrics, angularSpeed, linearSpeed):
-        metrics = Metrics(currentPosition, currentAngle, newPosition)
-
         positionDifference = metrics.getPositionDifference()
         printVector(positionDifference, 'Position difference')
 
@@ -173,7 +171,7 @@ class Controller:
 
         while (currentError > distanceError):
             #We get the times for traslation and for rotation
-            timeVector = _getMovementTimes(metrics, angularSpeed, linearSpeed)
+            timeVector = self._getMovementTimes(metrics, angularSpeed, linearSpeed)
             #We make the movements
             self._move(0.0, angularSpeed, timeVector.x, refreshTime)
             self._move(linearSpeed, 0.0, timeVector.y, refreshTime)
