@@ -10,6 +10,53 @@ import math
 #Current position of the turtle
 currentPose = turtlesim.msg.Pose()
 
+class Configs:
+    #Configuration arguments for the path requester
+    linearSpeed = 1.0
+    angularSpeed = 1.0
+    distanceError = 0.1
+    refreshTime = 0.01
+
+    def __init__(self, linearSpeed = 1.0, angularSpeed = 1.0, distanceError = 0.1, refreshTime = 0.01):
+        self.linearSpeed = linearSpeed
+        self.angularSpeed = angularSpeed
+        self.distanceError = distanceError
+        self.refreshTime = refreshTime
+
+class Publishers:
+    def __init__(self, turtleName):
+        self.turtleName = turtleName
+        self.speedPublisher = self._initSpeedPublisher()
+        self.positionPublisher = self._initPositionPublisher()
+
+    def _initSpeedPublisher(self):
+        turtleTopic = '/' + self.turtleName + '/cmd_vel'
+        publisher = rospy.Publisher(turtleTopic, Twist, queue_size=10)
+        return publisher
+
+    def _initPositionPublisher(self):
+        turtlePositionTopic = '/' + 'path_requester/' + self.turtleName + '/pose'
+        publisher = rospy.Publisher(turtlePositionTopic, Vector3, queue_size=10)
+        return publisher
+
+    def publishSpeed(self, traslationSpeed, angularSpeed):
+        self.speedPublisher.publish(Twist(Vector3(traslationSpeed, 0.0, 0.0),
+                                        Vector3(0.0, 0.0, angularSpeed)))
+
+    def publishPose(self, x = 0.0, y = 0.0, theta = 0.0):
+        self.positionPublisher.publish(Vector3(x, y, theta))
+
+class Listeners:
+    def __init__(self, turtleName):
+        self.turtleName = turtleName
+        self.suscriber = self._initPoseListener()
+
+    def _initPoseListener(self):
+        turtleTopic = '/' + self.turtleName + '/pose'
+        suscriptor = rospy.Subscriber(turtleTopic, turtlesim.msg.Pose, callbackTurtlePose, turtleName)
+        return suscriptor
+
+
 def callbackTurtlePose(data, turtleName):
     if (data.x != currentPose.x or 
             data.y != currentPose.y or 
@@ -38,15 +85,12 @@ def printVector(vector, str = ''):
 def printScalar(time, str = ''):
     rospy.loginfo("--> %s: [%.4f]", str, time)
 
-def initPositionListener(turtleName):
-    turtleTopic = '/' + turtleName + '/pose'
-    suscriptor = rospy.Subscriber(turtleTopic, turtlesim.msg.Pose, callbackTurtlePose, turtleName)
-    return suscriptor
+# def initPositionListener(turtleName):
+#     turtleTopic = '/' + turtleName + '/pose'
+#     suscriptor = rospy.Subscriber(turtleTopic, turtlesim.msg.Pose, callbackTurtlePose, turtleName)
+#     return suscriptor
 
-def initSpeedPublisher(turtleName):
-    turtleTopic = '/' + turtleName + '/cmd_vel'
-    publisher = rospy.Publisher(turtleTopic, Twist, queue_size=10)
-    return publisher
+
 
 # TODO! Argument check!
 def getNewPositionFromCLI():
@@ -146,26 +190,38 @@ if __name__ == '__main__':
     nodeName = 'ros_turtle_controller'
     turtleName = 'turtle1'
 
-    rateFrequency = 1 #in hertz
+    configs = Configs()
 
-    linearSpeed = 1.0
-    angularSpeed = 1.0
-    distanceError = 0.1
-    refreshTime = 0.01
+    # linearSpeed = 1.0
+    # angularSpeed = 1.0
+    # distanceError = 0.1
+    # refreshTime = 0.01
 
     #Initialize the node
     rospy.init_node(nodeName, anonymous=True)
+    
     #Initialize the turtle position listener
-    initPositionListener(turtleName)
+    listener = Listeners(turtleName)
+    # #Initialize the turtle position listener
+    # initPositionListener(turtleName)
+
+    #Initialize the publishers
+    publishers = Publishers(turtleName)
+
     #Initialize the turtle speed publisher
-    speedPublisher = initSpeedPublisher(turtleName)
+    #speedPublisher = initSpeedPublisher(turtleName)
     #Get the rate of the main thread
-    rate = rospy.Rate(rateFrequency)
+    rate = rospy.Rate(configs.refreshTime)
 
     while not rospy.is_shutdown():
         #Get the new position
         printCurrentXYAngle(turtleName)
         newPosition = getNewPositionFromCLI()
-        #Move till the turtle gets the postion
-        moveInClosedLoop(newPosition, distanceError, angularSpeed, linearSpeed, speedPublisher, refreshTime)
+        #Move till the turtle gets the position
+        moveInClosedLoop(newPosition, 
+                        configs.distanceError,
+                        configs.angularSpeed,
+                        configs.linearSpeed,
+                        publishers.speedPublisher,
+                        configs.refreshTime)
   
