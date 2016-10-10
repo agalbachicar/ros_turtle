@@ -16,6 +16,15 @@ cd ..
 catkin_make
 source devel/setup.bash
 
+#It makes a package for the path requester and adds the corresponding packages to it.
+cd src/ 
+catkin_create_pkg path_requester std_msgs rospy
+
+#Build catking packages
+cd ..
+catkin_make
+. devel/setup.bash
+
 
 
 
