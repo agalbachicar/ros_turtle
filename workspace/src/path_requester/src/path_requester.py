@@ -87,6 +87,18 @@ def getAngleIn2PIModulus(angle):
     else:
         return angle
 
+def move(publisher, traslationVector, rotationVector, time, refreshTime = 0.5):
+    while (time > refreshTime):
+        publisher.publish(Twist(traslationVector, rotationVector))
+        rospy.sleep(refreshTime)
+        time = time - refreshTime
+
+    publisher.publish(Twist(traslationVector, rotationVector))
+    rospy.sleep(time)
+    publisher.publish(Twist(Vector3(0.0,0.0,0.0), Vector3(0.0,0.0,0.0)))
+    return
+    
+
 if __name__ == '__main__':
     nodeName = 'ros_turtle_controller'
     turtleName = 'turtle1'
@@ -112,8 +124,9 @@ if __name__ == '__main__':
         #TODO ! Possible data contention
         currentPosition = Vector3(currentPose.x, currentPose.y, 0.0)
         currentAngle = currentPose.theta
-        printScalar(currentAngle, 'Current position')
+        printVector(currentPosition, 'Current position')
         printScalar(currentAngle, 'Current angle')
+
         #Get the position difference
         positionDifference = getPositionDifference(currentPosition, newPosition)
         printVector(positionDifference, 'Position difference')
@@ -128,11 +141,14 @@ if __name__ == '__main__':
         printScalar(linearTime, 'Traslation time')
 
         #We send the rotation, linear traslation and stop command 
-        speedPublisher.publish(Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, angularSpeed)))
-        rospy.sleep(rotationTime)
-        speedPublisher.publish(Twist(Vector3(linearSpeed, 0.0, 0.0), Vector3(0.0, 0.0, 0.0)))
-        rospy.sleep(linearTime)
-        speedPublisher.publish(Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0)))
+        move(speedPublisher, Vector3(0.0, 0.0, 0.0),  Vector3(0.0, 0.0, angularSpeed), rotationTime)
+        move(speedPublisher, Vector3(linearSpeed, 0.0, 0.0),  Vector3(0.0, 0.0, 0.0), linearTime)
+
+        # speedPublisher.publish(Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, angularSpeed)))
+        # rospy.sleep(rotationTime)
+        # speedPublisher.publish(Twist(Vector3(linearSpeed, 0.0, 0.0), Vector3(0.0, 0.0, 0.0)))
+        # rospy.sleep(linearTime)
+        # speedPublisher.publish(Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0)))
 
         #rate.sleep()
     
