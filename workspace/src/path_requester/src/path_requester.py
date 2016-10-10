@@ -29,8 +29,14 @@ def logCurrentPose(turtleName):
     rospy.loginfo(rospy.get_caller_id() + " %s : [x: %.2f; y: %.2f; theta: %.2f] [linear: %.2f, angular: %.2f]", 
         turtleName, currentPose.x, currentPose.y, currentPose.theta, currentPose.linear_velocity, currentPose.angular_velocity)    
 
-def printCurrentXY(turtleName):
-    rospy.loginfo("--> Current %s position: [%.2f ; %.2f ]", turtleName, currentPose.x, currentPose.y)
+def printCurrentXYAngle(turtleName):
+    rospy.loginfo("--> Current %s position: [%.2f ; %.2f ]-[%.4f]", turtleName, currentPose.x, currentPose.y, currentPose.theta)
+
+def printVector(vector, str = ''):
+    rospy.loginfo("--> %s: [%.2f ; %.2f ; %.2f]", str, vector.x, vector.y, vector.z)
+
+def printScalar(time, str = ''):
+    rospy.loginfo("--> %s: [%.4f]", str, time)
 
 def initPositionListener(turtleName):
     turtleTopic = '/' + turtleName + '/pose'
@@ -70,7 +76,16 @@ def getPositionDifference(currentPosition, newPosition):
     return Vector3(dx, dy, dz)
 
 def getAngleDifference(currentAngle, newAngle):
-    return ( newAngle - currentAngle )
+    cAngle = getAngleIn2PIModulus(currentAngle)
+    nAngle = getAngleIn2PIModulus(newAngle)
+    difAngle = getAngleIn2PIModulus(nAngle - cAngle)
+    return difAngle
+
+def getAngleIn2PIModulus(angle):
+    if angle < 0.0:
+        return math.pi + math.pi + angle
+    else:
+        return angle
 
 if __name__ == '__main__':
     nodeName = 'ros_turtle_controller'
@@ -92,19 +107,25 @@ if __name__ == '__main__':
 
     while not rospy.is_shutdown():
         #Get the new position
-        printCurrentXY(turtleName)
         newPosition = getNewPositionFromCLI()
 
         #TODO ! Possible data contention
         currentPosition = Vector3(currentPose.x, currentPose.y, 0.0)
         currentAngle = currentPose.theta
-
+        printScalar(currentAngle, 'Current position')
+        printScalar(currentAngle, 'Current angle')
+        #Get the position difference
+        positionDifference = getPositionDifference(currentPosition, newPosition)
+        printVector(positionDifference, 'Position difference')
         #Get the end angle
         endAngle = calculateEndAngle(currentPosition, newPosition)
+        printScalar(endAngle, 'End angle')
         #Get the rotation time
         rotationTime = calculateRotationTime(currentAngle, endAngle, angularSpeed)
+        printScalar(rotationTime, 'Rotation time')
         #Calulo el tiempo de traslacion
         linearTime = calculateTraslationTime(currentPosition, newPosition, linearSpeed)
+        printScalar(linearTime, 'Traslation time')
 
         #We send the rotation, linear traslation and stop command 
         speedPublisher.publish(Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, angularSpeed)))
