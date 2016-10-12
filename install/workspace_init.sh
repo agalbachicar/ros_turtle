@@ -25,6 +25,15 @@ cd ..
 catkin_make
 . devel/setup.bash
 
+#Create Action Server and Client Package
+catkin_create_pkg turtle_controller actionlib message_generation roscpp rospy std_msgs actionlib_msgs
+cd ..
+catkin_make
+cd src
+cd turtle_controller
+mkdir action
+
+
 
 
 

@@ -1,0 +1,8 @@
+#goal definition
+float32 distanceAccomplished
+---
+#result definition
+float32 distanceAccomplished
+---
+#feedback
+float32 currentDistance
