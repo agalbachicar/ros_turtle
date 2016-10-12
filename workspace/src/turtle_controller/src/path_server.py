@@ -1,12 +1,87 @@
 #! /usr/bin/env python
 
-import roslib; #roslib.load_manifest('turtle_controller')
 import rospy
-
+import turtlesim.msg
+from geometry_msgs.msg import Twist, Vector3
+import std_msgs.msg
+import math
 import actionlib
-
 import turtle_controller.msg
 
+#Current position of the turtle
+currentPose = turtlesim.msg.Pose()
+#--------------------------------------------------------------------------------------------------------
+class Configs:
+    #Configuration arguments for the path requester
+    linearSpeed = 1.0
+    angularSpeed = 1.0
+    distanceError = 0.1
+    refreshTime = 0.01
+
+    def __init__(self, linearSpeed = 1.0, angularSpeed = 1.0, distanceError = 0.1, refreshTime = 0.01):
+        self.linearSpeed = linearSpeed
+        self.angularSpeed = angularSpeed
+        self.distanceError = distanceError
+        self.refreshTime = refreshTime
+#--------------------------------------------------------------------------------------------------------
+class Publishers:
+    def __init__(self, turtleName):
+        self.turtleName = turtleName
+        self.speedPublisher = self._initSpeedPublisher()
+        self.positionPublisher = self._initDistancePublisher()
+
+    def _initSpeedPublisher(self):
+        turtleTopic = '/' + self.turtleName + '/cmd_vel'
+        publisher = rospy.Publisher(turtleTopic, Twist, queue_size=10)
+        return publisher
+
+    def _initDistancePublisher(self):
+        turtlePositionTopic = '/' + 'path_requester/' + self.turtleName + '/distance'
+        publisher = rospy.Publisher(turtlePositionTopic, std_msgs.msg.Float32, queue_size=10)
+        return publisher
+
+    def publishSpeed(self, traslationSpeed, angularSpeed):
+        self.speedPublisher.publish(Twist(Vector3(traslationSpeed, 0.0, 0.0),
+                                        Vector3(0.0, 0.0, angularSpeed)))
+
+    def publishDistance(self, distance):
+        self.positionPublisher.publish(distance)
+#--------------------------------------------------------------------------------------------------------
+class Listeners:
+    def __init__(self, turtleName):
+        self.turtleName = turtleName
+        self.poseSuscriber = self._initPoseListener()
+        self.distanceSuscriber = self._initDistanceListener()
+
+    def _initPoseListener(self):
+        turtleTopic = '/' + self.turtleName + '/pose'
+        suscriptor = rospy.Subscriber(turtleTopic, turtlesim.msg.Pose, callbackTurtlePose, turtleName)
+        return suscriptor
+
+    def _initDistanceListener(self):
+        turtleTopic = '/' + 'path_requester/' + self.turtleName + '/distance'
+        suscriptor = rospy.Subscriber(turtleTopic, std_msgs.msg.Float32, callbackTurtleDistance, turtleName)
+        return suscriptor
+
+def callbackTurtlePose(data, turtleName):
+    if (data.x != currentPose.x or 
+            data.y != currentPose.y or 
+            data.theta != currentPose.theta or 
+            data.linear_velocity != currentPose.linear_velocity or 
+            data.angular_velocity != currentPose.angular_velocity):
+        #Copy current pose
+        currentPose.x = data.x
+        currentPose.y = data.y
+        currentPose.theta = data.theta
+        currentPose.linear_velocity = data.linear_velocity
+        currentPose.angular_velocity = data.angular_velocity
+        #Log new values
+        #logCurrentPose(turtleName)       
+
+def callbackTurtleDistance(data, turtleName):
+    printScalar(data.data, 'Distance')
+#--------------------------------------------------------------------------------------------------------
+    
 class PathServerAction(object):
     # create messages that are used to publish feedback/result
     _feedback = turtle_controller.msg.PathFeedback()
