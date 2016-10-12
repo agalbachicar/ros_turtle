@@ -124,7 +124,6 @@ class Metrics:
         return math.sqrt( (math.pow(delta.x, 2.0) + math.pow(delta.y, 2.0)) / speed)
 
 #--------------------------------------------------------------------------------------------------------
-
 class Controller:
     def __init__(self, publishers):
         self.publishers = publishers
