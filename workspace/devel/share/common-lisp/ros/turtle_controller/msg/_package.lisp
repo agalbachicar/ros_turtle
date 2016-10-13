@@ -1,0 +1,19 @@
+(cl:defpackage turtle_controller-msg
+  (:use )
+  (:export
+   "<PATHACTIONFEEDBACK>"
+   "PATHACTIONFEEDBACK"
+   "<PATHGOAL>"
+   "PATHGOAL"
+   "<PATHRESULT>"
+   "PATHRESULT"
+   "<PATHACTION>"
+   "PATHACTION"
+   "<PATHACTIONRESULT>"
+   "PATHACTIONRESULT"
+   "<PATHFEEDBACK>"
+   "PATHFEEDBACK"
+   "<PATHACTIONGOAL>"
+   "PATHACTIONGOAL"
+  ))
+
