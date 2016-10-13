@@ -16,9 +16,9 @@ class Configs:
     linearSpeed = 1.0
     angularSpeed = 1.0
     distanceError = 0.1
-    refreshTime = 0.01
+    refreshTime = 0.5
 
-    def __init__(self, linearSpeed = 1.0, angularSpeed = 1.0, distanceError = 0.1, refreshTime = 0.01):
+    def __init__(self, linearSpeed = 1.0, angularSpeed = 1.0, distanceError = 0.1, refreshTime = 0.5):
         self.linearSpeed = linearSpeed
         self.angularSpeed = angularSpeed
         self.distanceError = distanceError
@@ -124,62 +124,62 @@ class Metrics:
         delta = self.getPositionDifference()
         return math.sqrt( (math.pow(delta.x, 2.0) + math.pow(delta.y, 2.0)) / speed)
 #--------------------------------------------------------------------------------------------------------
-class Controller:
-    def __init__(self, publishers):
-        self.publishers = publishers
+# class Controller:
+#     def __init__(self, publishers):
+#         self._publishers = publishers
 
-    def _move(self, linearSpeed, angularSpeed, time, refreshTime = 0.5):
-        while (time > refreshTime):
-            self.publishers.publishSpeed(linearSpeed, angularSpeed)
-            rospy.sleep(refreshTime)
-            time = time - refreshTime
+#     def _move(self, linearSpeed, angularSpeed, time, refreshTime = 0.5):
+#         while (time > refreshTime):
+#             self._publishers.publishSpeed(linearSpeed, angularSpeed)
+#             rospy.sleep(refreshTime)
+#             time = time - refreshTime
 
-        self.publishers.publishSpeed(linearSpeed, angularSpeed)
-        rospy.sleep(time)
-        self.publishers.publishSpeed(0.0, 0.0)
+#         self._publishers.publishSpeed(linearSpeed, angularSpeed)
+#         rospy.sleep(time)
+#         self._publishers.publishSpeed(0.0, 0.0)
 
-    def _getMovementTimes(self, metrics, angularSpeed, linearSpeed):
-        positionDifference = metrics.getPositionDifference()
-        # printVector(positionDifference, 'Position difference')
+#     def _getMovementTimes(self, metrics, angularSpeed, linearSpeed):
+#         positionDifference = metrics.getPositionDifference()
+#         # printVector(positionDifference, 'Position difference')
 
-        endAngle = metrics.getEndAngle()
-        # printScalar(endAngle, 'End angle')
+#         endAngle = metrics.getEndAngle()
+#         # printScalar(endAngle, 'End angle')
 
-        rotationTime = metrics.getRotationTime(endAngle, angularSpeed)
-        # printScalar(rotationTime, 'Rotation time')
+#         rotationTime = metrics.getRotationTime(endAngle, angularSpeed)
+#         # printScalar(rotationTime, 'Rotation time')
 
-        linearTime = metrics.getTraslationTime(linearSpeed)
-        # printScalar(linearTime, 'Traslation time')
+#         linearTime = metrics.getTraslationTime(linearSpeed)
+#         # printScalar(linearTime, 'Traslation time')
 
-        return Vector3(rotationTime, linearTime, 0.0)
+#         return Vector3(rotationTime, linearTime, 0.0)
 
-    def moveInClosedLoop(self, newPosition, distanceError, angularSpeed, linearSpeed, refreshTime = 0.5):
-        #TODO ! Possible data contention
-        currentPosition = Vector3(currentPose.x, currentPose.y, 0.0)
-        currentAngle = currentPose.theta
-        #Create the metrics object to encapsulate all the math operations
-        metrics = Metrics(currentPosition, currentAngle, newPosition)
-        #Get the current error
-        currentError = metrics.getDistance()
-        #Publish distance
-        publishers.publishDistance(currentError)
+#     def moveInClosedLoop(self, newPosition, distanceError, angularSpeed, linearSpeed, refreshTime = 0.5):
+#         #TODO ! Possible data contention
+#         currentPosition = Vector3(currentPose.x, currentPose.y, 0.0)
+#         currentAngle = currentPose.theta
+#         #Create the metrics object to encapsulate all the math operations
+#         metrics = Metrics(currentPosition, currentAngle, newPosition)
+#         #Get the current error
+#         currentError = metrics.getDistance()
+#         #Publish distance
+#         publishers.publishDistance(currentError)
 
-        while (currentError > distanceError):
-            #We get the times for traslation and for rotation
-            timeVector = self._getMovementTimes(metrics, angularSpeed, linearSpeed)
-            #We make the movements
-            self._move(0.0, angularSpeed, timeVector.x, refreshTime)
-            self._move(linearSpeed, 0.0, timeVector.y, refreshTime)
+#         while (currentError > distanceError):
+#             #We get the times for traslation and for rotation
+#             timeVector = self._getMovementTimes(metrics, angularSpeed, linearSpeed)
+#             #We make the movements
+#             self._move(0.0, angularSpeed, timeVector.x, refreshTime)
+#             self._move(linearSpeed, 0.0, timeVector.y, refreshTime)
 
-            #TODO ! Possible data contention
-            currentPosition = Vector3(currentPose.x, currentPose.y, 0.0)
-            currentAngle = currentPose.theta
-            #Create the metrics object to encapsulate all the math operations
-            metrics = Metrics(currentPosition, currentAngle, newPosition)
-            #Get the current error
-            currentError = metrics.getDistance()
-            #Publish distance
-            publishers.publishDistance(currentError)
+#             #TODO ! Possible data contention
+#             currentPosition = Vector3(currentPose.x, currentPose.y, 0.0)
+#             currentAngle = currentPose.theta
+#             #Create the metrics object to encapsulate all the math operations
+#             metrics = Metrics(currentPosition, currentAngle, newPosition)
+#             #Get the current error
+#             currentError = metrics.getDistance()
+#             #Publish distance
+#             publishers.publishDistance(currentError)
 
 #--------------------------------------------------------------------------------------------------------
 def logCurrentPose(turtleName):
@@ -200,54 +200,145 @@ class PathServerAction(object):
     _feedback = turtle_controller.msg.PathFeedback()
     _result   = turtle_controller.msg.PathResult()
 
+    #Position vector set as goal
+    _newPosition = Vector3(0.0, 0.0, 0.0)
+    #Distance to the goal
+    _totalDistance = 0.0
 
     def __init__(self, name, publishers, configs):
         self._action_name = name
         #Set publishers and configs
         self._publishers = publishers
         self._configs = configs
-        #Create controller
-        self._controller = Controller(publishers)
+        #Create the Simple Action Server
         self._as = actionlib.SimpleActionServer(self._action_name, turtle_controller.msg.PathAction, execute_cb=self.execute_cb, auto_start = False)
+        #Start the server
         self._as.start()
     
+    def loadResult(self, progress, currentPosition, rightPosition):
+        self._result.progress = progress
+        self._result.currentPosition = [currentPosition.x, currentPosition.y]
+        self._result.rightPosition = rightPosition
+
+    #TODO Goal check for valid values
+    def goalCheck(self, goal):
+        self._newPosition.x = goal.newPosition[0]
+        self._newPosition.y = goal.newPosition[1]
+        return True
+
+    def sendFeedback(self, currentDistance):
+        #Check de distance because possible division by zero
+        if (self._totalDistance == 0) :
+            self._feedback.progress = 1
+        else :
+            self._feedback.progress = (self._totalDistance - currentDistance) / self._totalDistance
+        #Set the current position
+        self._feedback.currentPosition = [currentPose.x, currentPose.y]
+        #Publish the feedback
+        self._as.publish_feedback(self._feedback)
+
+    def getCurrentPosition(self):
+        return Vector3(currentPose.x, currentPose.y, 0.0)
+
+    def getCurrentAngle(self):
+        return currentPose.theta
+
+    def getMovementTimes(self, metrics):
+        #Get the position difference
+        positionDifference = metrics.getPositionDifference()
+        #Get the end angle
+        endAngle = metrics.getEndAngle()
+        #Calculate the rotation time
+        rotationTime = metrics.getRotationTime(endAngle, self._configs.angularSpeed)
+        #Calculate the traslation time
+        linearTime = metrics.getTraslationTime(self._configs.linearSpeed)
+        #Return time results
+        return Vector3(rotationTime, linearTime, 0.0)                    
+
+    def preemptionOccured(self):
+        if self._as.is_preempt_requested():
+            rospy.loginfo('%s: Preempted' % self._action_name)
+            self._as.set_preempted()
+            return True
+        return False
+
+    def move(self, linearSpeed, angularSpeed, time):
+        while (time > self._configs.refreshTime):
+            # Check that preempt has not been requested by the client
+            if (self.preemptionOccured() == True):
+                return False
+
+            #Send turtle signal of speed and time
+            self._publishers.publishSpeed(linearSpeed, angularSpeed)
+            rospy.sleep(self._configs.refreshTime)
+            time = time - self._configs.refreshTime
+            #Create the metrics object to encapsulate to give feedback of the position
+            metrics = Metrics(self.getCurrentPosition(), self.getCurrentAngle(), self._newPosition)
+            self.sendFeedback(metrics.getDistance())
+
+        #Send remanent speed information
+        self._publishers.publishSpeed(linearSpeed, angularSpeed)
+        rospy.sleep(time)
+        #Stop
+        self._publishers.publishSpeed(0.0, 0.0)
+        #Create the metrics object to encapsulate to give feedback of the position
+        metrics = Metrics(self.getCurrentPosition(), self.getCurrentAngle(), self._newPosition)
+        self.sendFeedback(metrics.getDistance())  
+
+        return True
+
+    def executeController(self):
+        #TODO ! Possible data contention
+        #Create the metrics object to encapsulate all the math operations
+        metrics = Metrics(self.getCurrentPosition(), self.getCurrentAngle(), self._newPosition)
+        #Set the distance to the goal
+        self._totalDistance = metrics.getDistance()
+        #Calculate the movement times
+        timeVector = self.getMovementTimes(metrics)
+
+        #Calculate and send the feedback
+        self.sendFeedback(self._totalDistance)        
+
+        #Rotation movement
+        if(self.move(0.0, self._configs.angularSpeed, timeVector.x) == False):
+            return False
+
+        #Traslation movement
+        if(self.move(self._configs.linearSpeed, 0.0, timeVector.y) == False):
+            return False
+
+        return True
+
+
     def execute_cb(self, goal):
-        # helper variables
         r = rospy.Rate(1)
         success = True
 
-        # Set the current distance Accomplished
-        self._feedback.currentDistance = 0.0
-        
-        # publish info to the console for the user
-        rospy.loginfo('%s: Controlling turtle to move from here to  %.2f' % (self._action_name, goal.distanceAccomplished))
-        
-        # start executing the action
-        #Move till the turtle gets the position
-        #self_controller.moveInClosedLoop(newPosition, 
-        #                self._configs.distanceError,
-        #                self._configs.angularSpeed,
-        #                self._configs.linearSpeed,
-        #                self._configs.refreshTime)          
+        #Set the current progress
+        self._feedback.progress = 0.0
 
-        for i in xrange(1, 10):
-            # check that preempt has not been requested by the client
-            if self._as.is_preempt_requested():
-                rospy.loginfo('%s: Preempted' % self._action_name)
-                self._as.set_preempted()
-                success = False
-                break
-
-            self._feedback.currentDistance = self._feedback.currentDistance + 0.1
-            # publish the feedback
-            self._as.publish_feedback(self._feedback)
-            # this step is not necessary, the sequence is computed at 1 Hz for demonstration purposes
-            r.sleep()
-      
-        if success:
-            self._result.distanceAccomplished = self._feedback.currentDistance
-            rospy.loginfo('%s: Succeeded' % self._action_name)
+        if (self.goalCheck(goal) == False):
+            rospy.loginfo('%s: Goal validation error.' % self._action_name)
+            #Load de result of the action goal
+            loadResult(self._feedback.progress, currentPose, False)
+            #Send result to client
             self._as.set_succeeded(self._result)
+            #End action task
+            return
+
+        # Publish info to the console for the user
+        rospy.loginfo('%s: Controlling turtle to move from here to  [%.2f;%.2f]' % (self._action_name, self._newPosition.x, self._newPosition.y))
+
+        # Action starts
+        if (self.executeController() == False):
+            #Action fails due to preemption
+            return
+
+        #Action ends
+        self._feedback.progress = 1.0
+        self.loadResult(self._feedback.progress, self.getCurrentPosition(), True)
+        rospy.loginfo('%s: Succeeded' % self._action_name)
+        self._as.set_succeeded(self._result)
       
 if __name__ == '__main__':
     rospy.init_node('path_server')

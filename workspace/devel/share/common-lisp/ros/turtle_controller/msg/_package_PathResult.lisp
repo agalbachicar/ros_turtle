@@ -1,4 +1,8 @@
 (cl:in-package turtle_controller-msg)
-(cl:export '(DISTANCEACCOMPLISHED-VAL
-          DISTANCEACCOMPLISHED
+(cl:export '(PROGRESS-VAL
+          PROGRESS
+          CURRENTPOSITION-VAL
+          CURRENTPOSITION
+          RIGHTPOSITION-VAL
+          RIGHTPOSITION
 ))

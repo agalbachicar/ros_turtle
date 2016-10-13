@@ -10,6 +10,15 @@ import actionlib
 # goal message and the result message.
 import turtle_controller.msg
 
+#--------------------------------------------------------------------------------------------------------
+
+# TODO! Argument check!
+def getNewPositionFromCLI():
+    x = raw_input("--> Please insert the new X coordinate: ")
+    y = raw_input("--> Please insert the new Y coordinate: ")
+    return [float(x), float(y)]
+
+
 def PathClient():
     # Creates the SimpleActionClient, passing the type of the action
     # (FibonacciAction) to the constructor.
@@ -19,17 +28,21 @@ def PathClient():
     # listening for goals.
     client.wait_for_server()
 
-    # Creates a goal to send to the action server.
-    goal = turtle_controller.msg.PathGoal(distanceAccomplished=1.0)
-
-    # Sends the goal to the action server.
-    client.send_goal(goal)
-
-    # Waits for the server to finish performing the action.
-    client.wait_for_result()
-
-    # Prints out the result of executing the action
-    return client.get_result()
+    while True:
+        positionGoal = getNewPositionFromCLI()
+        # Creates a goal to send to the action server.
+        goal = turtle_controller.msg.PathGoal(positionGoal)
+        # Sends the goal to the action server.
+        client.send_goal(goal)
+        # Waits for the server to finish performing the action.
+        client.wait_for_result()
+        #Get the result
+        result = client.get_result()
+        #Check the result
+        if (result.rightPosition == True):
+            rospy.loginfo( "New position: [%.2f:%.2f]" % (result.currentPosition[0], result.currentPosition[1]))
+        else:
+            rospy.loginfo( "Error with the position sent")
 
 if __name__ == '__main__':
     try:
