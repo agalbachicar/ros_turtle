@@ -90,7 +90,7 @@ def clientBlockingController():
     return
 
 def clientAsyncController():
-    # while True:
+    
     positionGoal = getNewPositionFromCLI()
 
     pathClient = PathClient('path_server')
@@ -98,13 +98,6 @@ def clientAsyncController():
     pathClient.sendGoal(positionGoal, 0.0)
 
     rospy.spin()
-
-        # # Check the result
-        # if (result.rightPosition == True):
-        #     rospy.loginfo( "New position: [%.2f:%.2f]" % (result.currentPosition[0], result.currentPosition[1]))
-        #     rospy.loginfo( "Progress result: %.2f" % (result.progress))
-        # else:
-        #     rospy.loginfo( "Error with the position sent")
 
     return    
 
