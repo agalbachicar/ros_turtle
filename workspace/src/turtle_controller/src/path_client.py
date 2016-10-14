@@ -35,6 +35,46 @@ def clearOutput():
     print("\033c")
     return
 
+def createTextProgress(progress, currentPosition):
+    if (currentPosition != None):
+        return 'Progress: ' + str(progress*100.0) + ' % | Position: [' + str(currentPosition[0]) + ' ; ' + str(currentPosition[1]) + ']'
+    else:
+        return 'Progress: ' + str(progress)
+
+def createEndGoalText(terminalState, progress, currentPosition):
+    if (terminalState != None and progress != None != currentPosition != None):
+        return 'Terminal state: ' + str(terminalState) + ' | Progress: ' + str(progress*100.0) + ' % | Position: [' + str(currentPosition[0]) + ' ; ' + str(currentPosition[1]) + ']'
+    elif (terminalState != None):
+        return 'Terminal state: ' + str(terminalState)
+    else:
+        return ''
+
+def createCancelGoalText():
+    return 'Goal has been cancelled'
+
+def resumeCurrentGoal():
+    while rospy.is_shutdown() == False:
+        input = raw_input('Press "r" to resume or "c" to cancel:')
+
+        if(input.startswith('r') or input.startswith('R')):
+            return True
+        elif(input.startswith('c') or input.startswith('C')):
+            return False
+        else:
+            print('Bad response...')
+    return False
+
+def sendNewGoal():            
+    while rospy.is_shutdown() == False:
+        input = raw_input('Do you want to send a goal? [y/n]:')
+
+        if(input.startswith('y') or input.startswith('Y')):
+            return True
+        elif(input.startswith('n') or input.startswith('N')):
+            return False
+        else:
+            print('Bad response...')        
+    return False
 #--------------------------------------------------------------------------------------------------------
 class PathClient:
 
@@ -46,11 +86,10 @@ class PathClient:
         self.resultValue = None
         return
 
-    def connectToServer(self):
+    def connectToServer(self, timeoutTime = 10):
         # Waits until the action server has started up and started
         # listening for goals.        
-        self.client.wait_for_server()
-        return
+        return self.client.wait_for_server(rospy.Duration(timeoutTime, 0))
 
     def sendGoal(self, positionGoal, blockTime):
         # Creates a goal to send to the action server.
@@ -73,6 +112,13 @@ class PathClient:
 
     def cancelGoal(self):
         self.client.cancel_goal()
+        return
+
+    def resetGoal(self):
+        self.goal = None
+        self.terminalState = None
+        self.feedbackValue = None
+        self.resultValue = None
         return
 
     def doneCallback(self, terminalState, resultValue):
@@ -109,78 +155,69 @@ class PathClient:
     def getResultValue(self):
         return self.resultValue
 
-def clientBlockingController():
-    while True:
-        positionGoal = getNewPositionFromCLI()
-
-        pathClient = PathClient('path_server')
-        pathClient.connectToServer()
-        
-        result = pathClient.sendGoal(positionGoal, 30.0)
-
-        # Check the result
-        if (result.rightPosition == True):
-            rospy.loginfo( "New position: [%.2f:%.2f]" % (result.currentPosition[0], result.currentPosition[1]))
-            rospy.loginfo( "Progress result: %.2f" % (result.progress))
-        else:
-            rospy.loginfo( "Error with the position sent")
-
-    return
-
-def createTextProgress(progress, currentPosition):
-    if (currentPosition != None):
-        return 'Progress: ' + str(progress*100.0) + ' % | Position: [' + str(currentPosition[0]) + ' ; ' + str(currentPosition[1]) + ']'
-    else:
-        return 'Progress: ' + str(progress)
-
-def createEndGoalText(terminalState, progress, currentPosition):
-    if (terminalState != None and progress != None != currentPosition != None):
-        return 'Terminal state: ' + str(terminalState) + ' | Progress: ' + str(progress*100.0) + ' % | Position: [' + str(currentPosition[0]) + ' ; ' + str(currentPosition[1]) + ']'
-    elif (terminalState != None):
-        return 'Terminal state: ' + str(terminalState)
-    else:
-        return ''
-
-def createCancelGoalText():
-    return 'Goal has been cancelled'
-
+#--------------------------------------------------------------------------------------------------------
 def clientAsyncController(positionGoal):
+    #Create a client to talk to the server
     pathClient = PathClient('path_server')
-    pathClient.connectToServer()
+    #Connect to the server
+    if( pathClient.connectToServer() == False):
+        print ('Server connection timeout')
+        return False
+
+    #Send the goal the server
     pathClient.sendGoal(positionGoal, 0.0)
 
-    while (pathClient.getIsGoalFinished() == False):
-
+    #Iterate while the goal is being processed
+    while (pathClient.getIsGoalFinished() == False and rospy.is_shutdown() == False):
+        #Get the current progress
         progress = pathClient.getCurrentProgress()
+        #Get the current position
         currentPosition = pathClient.getCurrentPosition()
-
+        #Generate a legend with those values
         textProgress = createTextProgress(progress, currentPosition)
-
+        #Clear output to refresh data
         clearOutput()        
-
+        #Print progress and ask for the action to take
         print ('%s' % (textProgress))
-        input = scanConsoleWithTimeout('Press c to cancel goal', 2)
+        input = scanConsoleWithTimeout('Press "p" to pause, "c" to cancel... ', 2)
 
+        #Parse response and act in consecuence
         if (input == None):
             continue
         elif (input.startswith('c') or input.startswith('C')):
+            #We need to cancel the goal so we just end the task
             pathClient.cancelGoal()
             print('%s' % (createCancelGoalText()))
-            return
+            return True
+        elif (input.startswith('p') or input.startswith('P')):
+            #Cancel current goal
+            pathClient.cancelGoal()
+            #Ask if the client wants to resume current goal
+            if (resumeCurrentGoal() == True):
+                pathClient.resetGoal()
+                pathClient.sendGoal(positionGoal, 0.0)
+            else:
+                print('%s' % (createCancelGoalText()))   
+                return True
 
     textResult = createEndGoalText(pathClient.getTerminalState(), pathClient.getResultValue().progress, pathClient.getResultValue().currentPosition)
     print(textResult)
 
-    return    
+    return True
 
 if __name__ == '__main__':
 
+    print('Path_Client is starting...')
+    
     rospy.init_node('Path_Client', anonymous=True)
-    try:
-        # clientBlockingController()
-        while True:
-            positionGoal = getNewPositionFromCLI()
-            clientAsyncController(positionGoal)
 
+    try:
+        while (sendNewGoal() == True and rospy.is_shutdown() == False) :
+            #Ask for the goal
+            positionGoal = getNewPositionFromCLI()
+            #Run the async client controller
+            clientAsyncController(positionGoal)
     except rospy.ROSInterruptException:
         rospy.loginfo("Program interrupted before completion")
+
+    print('Path_Client is finishing...')
