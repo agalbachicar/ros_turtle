@@ -28,40 +28,40 @@ class Publishers:
     def __init__(self, turtleName):
         self.turtleName = turtleName
         self.speedPublisher = self._initSpeedPublisher()
-        self.positionPublisher = self._initDistancePublisher()
+        # self.positionPublisher = self._initDistancePublisher()
 
     def _initSpeedPublisher(self):
         turtleTopic = '/' + self.turtleName + '/cmd_vel'
         publisher = rospy.Publisher(turtleTopic, Twist, queue_size=10)
         return publisher
 
-    def _initDistancePublisher(self):
-        turtlePositionTopic = '/' + 'path_requester/' + self.turtleName + '/distance'
-        publisher = rospy.Publisher(turtlePositionTopic, std_msgs.msg.Float32, queue_size=10)
-        return publisher
+    # def _initDistancePublisher(self):
+    #     turtlePositionTopic = '/' + 'path_requester/' + self.turtleName + '/distance'
+    #     publisher = rospy.Publisher(turtlePositionTopic, std_msgs.msg.Float32, queue_size=10)
+    #     return publisher
 
     def publishSpeed(self, traslationSpeed, angularSpeed):
         self.speedPublisher.publish(Twist(Vector3(traslationSpeed, 0.0, 0.0),
                                         Vector3(0.0, 0.0, angularSpeed)))
 
-    def publishDistance(self, distance):
-        self.positionPublisher.publish(distance)
+    # def publishDistance(self, distance):
+    #     self.positionPublisher.publish(distance)
 #--------------------------------------------------------------------------------------------------------
 class Listeners:
     def __init__(self, turtleName):
         self.turtleName = turtleName
         self.poseSuscriber = self._initPoseListener()
-        self.distanceSuscriber = self._initDistanceListener()
+        # self.distanceSuscriber = self._initDistanceListener()
 
     def _initPoseListener(self):
         turtleTopic = '/' + self.turtleName + '/pose'
         suscriptor = rospy.Subscriber(turtleTopic, turtlesim.msg.Pose, callbackTurtlePose, turtleName)
         return suscriptor
 
-    def _initDistanceListener(self):
-        turtleTopic = '/' + 'path_requester/' + self.turtleName + '/distance'
-        suscriptor = rospy.Subscriber(turtleTopic, std_msgs.msg.Float32, callbackTurtleDistance, turtleName)
-        return suscriptor
+    # def _initDistanceListener(self):
+    #     turtleTopic = '/' + 'path_requester/' + self.turtleName + '/distance'
+    #     suscriptor = rospy.Subscriber(turtleTopic, std_msgs.msg.Float32, callbackTurtleDistance, turtleName)
+    #     return suscriptor
 
 def callbackTurtlePose(data, turtleName):
     if (data.x != currentPose.x or 
@@ -78,8 +78,8 @@ def callbackTurtlePose(data, turtleName):
         #Log new values
         #logCurrentPose(turtleName)       
 
-def callbackTurtleDistance(data, turtleName):
-    printScalar(data.data, 'Distance')
+# def callbackTurtleDistance(data, turtleName):
+#     printScalar(data.data, 'Distance')
 
 #--------------------------------------------------------------------------------------------------------
 class Metrics:

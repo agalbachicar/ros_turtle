@@ -8,6 +8,10 @@ This project is a sample and introductory project to show the power of ROS and s
 
 The nodes are programs which run in the context of the ROS framework and interact between each othe with standard interfaces. This project involves two nodes, one for the server and the other for the client. Also, both are Python scripts and are based on the actionlib ROS library.
 
+The following image shows the nodes:
+
+![Nodes](https://github.com/agalbachicar/ros_turtle/raw/develop/images/rosgraph.png "Nodes")
+
 ## Server description
 
 The server is committed to control the turtle publishing messages on the 'turtle1/cmd_vel' topic that the turtlesim node has, and it listens to the 'turtle1/pose' topic to get the last postion and orientation of the turtle. As the turtle has a seed control, but you can measure its position, the server calculates time for rotations and traslations of the turtle and send messages to it so as to get to the goal position. Some error is made with this approach as its quite simple.
