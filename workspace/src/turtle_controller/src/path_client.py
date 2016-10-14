@@ -10,13 +10,31 @@ import actionlib
 # goal message and the result message.
 import turtle_controller.msg
 
+import sys
+from select import select
+
+
 #--------------------------------------------------------------------------------------------------------
 
 # TODO! Argument check!
 def getNewPositionFromCLI():
+    print('------------------------------------------------')
     x = raw_input("--> Please insert the new X coordinate: ")
     y = raw_input("--> Please insert the new Y coordinate: ")
     return [float(x), float(y)]
+
+def scanConsoleWithTimeout(text, timeoutTime):
+    print("%s" % (text))
+    rlist, _, _ = select([sys.stdin], [], [], timeoutTime)
+    if rlist:
+        s = sys.stdin.readline()
+        return s
+    else:
+        return None
+
+def clearOutput():
+    print("\033c")
+    return
 
 #--------------------------------------------------------------------------------------------------------
 class PathClient:
@@ -24,6 +42,9 @@ class PathClient:
     def __init__(self, serverName):
         # Creates the SimpleActionClient, passing the type of the action
         self.client = actionlib.SimpleActionClient(serverName, turtle_controller.msg.PathAction)
+        self.terminalState = None
+        self.feedbackValue = None
+        self.resultValue = None
         return
 
     def connectToServer(self):
@@ -52,25 +73,40 @@ class PathClient:
         return None
 
     def doneCallback(self, terminalState, resultValue):
-        #Check the result
-        rospy.loginfo("Terminal state: %d" % (terminalState))
-
-        if (resultValue.rightPosition == True):
-            rospy.loginfo( "Progress result: %.2f %%" % (resultValue.progress * 100.0))
-            rospy.loginfo( "New position: [%.2f:%.2f]" % (resultValue.currentPosition[0], resultValue.currentPosition[1]))
-        else:
-            rospy.loginfo("Error with the position sent")        
-
+        self.terminalState = terminalState
+        self.resultValue = resultValue   
         return
 
     def activeCallback(self):
-        rospy.loginfo("Goal sent to terminal state")
+        #rospy.loginfo("Goal sent to active state")
         return
 
     def feedbackCallback(self, feedbackValue):
-        rospy.loginfo("Current progress: %.2f %%" % (feedbackValue.progress * 100.0))
-        rospy.loginfo("Current position: [%.2f:%.2f]" % (feedbackValue.currentPosition[0], feedbackValue.currentPosition[1]))
+        self.feedbackValue = feedbackValue
+        # rospy.loginfo("Current progress: %.2f %%" % (feedbackValue.progress * 100.0))
+        # rospy.loginfo("Current position: [%.2f:%.2f]" % (feedbackValue.currentPosition[0], feedbackValue.currentPosition[1]))
         return 
+
+    def getCurrentProgress(self):
+        if(self.feedbackValue != None):
+            return self.feedbackValue.progress
+        return 0.0
+
+    def getCurrentPosition(self):
+        if(self.feedbackValue != None):
+            return self.feedbackValue.currentPosition
+        return None
+
+    def getIsGoalFinished(self):
+        if(self.terminalState == None):
+            return False
+        return True
+
+    def getTerminalState(self):
+        return self.terminalState
+
+    def getResultValue(self):
+        return self.resultValue
 
 def clientBlockingController():
     while True:
@@ -80,6 +116,7 @@ def clientBlockingController():
         pathClient.connectToServer()
         
         result = pathClient.sendGoal(positionGoal, 30.0)
+
         # Check the result
         if (result.rightPosition == True):
             rospy.loginfo( "New position: [%.2f:%.2f]" % (result.currentPosition[0], result.currentPosition[1]))
@@ -89,16 +126,51 @@ def clientBlockingController():
 
     return
 
-def clientAsyncController():
-    
-    positionGoal = getNewPositionFromCLI()
+def createTextProgress(progress, currentPosition):
+    if (currentPosition != None):
+        return 'Progress: ' + str(progress*100.0) + ' % | Position: [' + str(currentPosition[0]) + ' ; ' + str(currentPosition[1]) + ']'
+    else:
+        return 'Progress: ' + str(progress)
 
+def createEndGoalText(terminalState, progress, currentPosition):
+    if (terminalState != None and progress != None != currentPosition != None):
+        return 'Terminal state: ' + str(terminalState) + 'Progress: ' + str(progress*100.0) + ' % | Position: [' + str(currentPosition[0]) + ' ; ' + str(currentPosition[1]) + ']'
+    elif (terminalState != None):
+        return 'Terminal state: ' + str(terminalState)
+    else:
+        return ''
+
+def clientAsyncController(positionGoal):
     pathClient = PathClient('path_server')
     pathClient.connectToServer()
     pathClient.sendGoal(positionGoal, 0.0)
 
-    rospy.spin()
+    while (pathClient.getIsGoalFinished() == False):
 
+        progress = pathClient.getCurrentProgress()
+        currentPosition = pathClient.getCurrentPosition()
+
+        textProgress = createTextProgress(progress, currentPosition)
+
+        clearOutput()        
+
+        print ('%s' % (textProgress))
+        input = scanConsoleWithTimeout('Press c to cancel, p to pause and r to resume', 1)
+
+        if (input == None):
+            continue
+        elif (input == 'p'):
+            print ('Pause!!!!!')
+        elif (input == 'c'):
+            print ('Cancel!!!!!')
+        elif (input == 'r'):
+            print ('Resume!!!!!')
+        else:
+            continue
+
+    textResult = createEndGoalText(pathClient.getTerminalState(), pathClient.getResultValue().progress, pathClient.getResultValue().currentPosition)
+    print(textResult)
+    
     return    
 
 if __name__ == '__main__':
@@ -106,7 +178,9 @@ if __name__ == '__main__':
     rospy.init_node('Path_Client', anonymous=True)
     try:
         # clientBlockingController()
-        clientAsyncController()
+        while True:
+            positionGoal = getNewPositionFromCLI()
+            clientAsyncController(positionGoal)
     except rospy.ROSInterruptException:
         rospy.loginfo("Program interrupted before completion")
     # try:
