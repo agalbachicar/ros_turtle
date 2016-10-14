@@ -16,7 +16,6 @@ from select import select
 
 #--------------------------------------------------------------------------------------------------------
 
-# TODO! Argument check!
 def getNewPositionFromCLI():
     print('------------------------------------------------')
     x = raw_input("--> Please insert the new X coordinate: ")
@@ -72,6 +71,10 @@ class PathClient:
                                 self.feedbackCallback)
         return None
 
+    def cancelGoal(self):
+        self.client.cancel_goal()
+        return
+
     def doneCallback(self, terminalState, resultValue):
         self.terminalState = terminalState
         self.resultValue = resultValue   
@@ -83,8 +86,6 @@ class PathClient:
 
     def feedbackCallback(self, feedbackValue):
         self.feedbackValue = feedbackValue
-        # rospy.loginfo("Current progress: %.2f %%" % (feedbackValue.progress * 100.0))
-        # rospy.loginfo("Current position: [%.2f:%.2f]" % (feedbackValue.currentPosition[0], feedbackValue.currentPosition[1]))
         return 
 
     def getCurrentProgress(self):
@@ -134,11 +135,14 @@ def createTextProgress(progress, currentPosition):
 
 def createEndGoalText(terminalState, progress, currentPosition):
     if (terminalState != None and progress != None != currentPosition != None):
-        return 'Terminal state: ' + str(terminalState) + 'Progress: ' + str(progress*100.0) + ' % | Position: [' + str(currentPosition[0]) + ' ; ' + str(currentPosition[1]) + ']'
+        return 'Terminal state: ' + str(terminalState) + ' | Progress: ' + str(progress*100.0) + ' % | Position: [' + str(currentPosition[0]) + ' ; ' + str(currentPosition[1]) + ']'
     elif (terminalState != None):
         return 'Terminal state: ' + str(terminalState)
     else:
         return ''
+
+def createCancelGoalText():
+    return 'Goal has been cancelled'
 
 def clientAsyncController(positionGoal):
     pathClient = PathClient('path_server')
@@ -155,22 +159,18 @@ def clientAsyncController(positionGoal):
         clearOutput()        
 
         print ('%s' % (textProgress))
-        input = scanConsoleWithTimeout('Press c to cancel, p to pause and r to resume', 1)
+        input = scanConsoleWithTimeout('Press c to cancel goal', 2)
 
         if (input == None):
             continue
-        elif (input == 'p'):
-            print ('Pause!!!!!')
-        elif (input == 'c'):
-            print ('Cancel!!!!!')
-        elif (input == 'r'):
-            print ('Resume!!!!!')
-        else:
-            continue
+        elif (input.startswith('c') or input.startswith('C')):
+            pathClient.cancelGoal()
+            print('%s' % (createCancelGoalText()))
+            return
 
     textResult = createEndGoalText(pathClient.getTerminalState(), pathClient.getResultValue().progress, pathClient.getResultValue().currentPosition)
     print(textResult)
-    
+
     return    
 
 if __name__ == '__main__':
@@ -181,13 +181,6 @@ if __name__ == '__main__':
         while True:
             positionGoal = getNewPositionFromCLI()
             clientAsyncController(positionGoal)
+
     except rospy.ROSInterruptException:
         rospy.loginfo("Program interrupted before completion")
-    # try:
-    #     # Initializes a rospy node so that the SimpleActionClient can
-    #     # publish and subscribe over ROS.
-    #     rospy.init_node('Path_Client', anonymous=True)
-    #     result = PathClient()
-    #     rospy.loginfo( "Result: %.2f" % (result.distanceAccomplished))
-    # except rospy.ROSInterruptException:
-    #     rospy.loginfo("Program interrupted before completion")
