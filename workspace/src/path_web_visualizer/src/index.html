@@ -8,13 +8,32 @@
   </head>
   <body onload="onLoad()">
     <h1>ROS Turtle Path Visualizer</h1>
-    <h2>The following canvas show the path followed by the turtle</h2>
     <div>
-      <text>Current status</text>
-      <p id="statusLbl"></p>
+      <b>Turtle Control</b>
+      <p>Current turtle postion:</p>
+      <text id="positionText"></text>
     </div>
     <div>
-      <canvas id="turtleCanvas" width="500" height="500" style="border:1px solid #d3d3d3;">Your browser does not support the HTML5 canvas tag.</canvas>
+      <b>Set turtle new position</b>
+      <p>X:</p><input id="newPositionX" type="number"></input>
+      <p>Y:</p><input id="newPositionY" type="number"></input>
+      <button id="sendButton">Send</button> 
+    </div>
+    <div>
+      <div>
+        <b>Current server status</b>
+        <p id="statusLbl"></p>
+      </div>
+      <div>
+        <p>Goal activity:</p>
+        <text id="goalFeedbackText"></text>
+      </div>
+    </div>
+    <div>
+      <h2>Turtle field</h2>
+      <div>
+        <canvas id="turtleCanvas" width="500" height="500" style="border:1px solid #d3d3d3;">Your browser does not support the HTML5 canvas tag.</canvas>
+      </div>    
     </div>    
   </body>
 </html>
